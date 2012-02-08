@@ -1,0 +1,5 @@
+; $Id$
+name = ASC Events Index
+description = Page to display ASC Events from a calendar. Requires a Standard Site Deployment to function.
+package = "Arts and Sciences at The Ohio State University Modules"
+core = 6.x

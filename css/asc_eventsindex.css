@@ -1,0 +1,68 @@
+@charset "UTF-8";
+/* CSS Document */
+
+.asc-eventsindex-display th {
+  font-size: 107.7%;
+  font-weight: normal;
+  padding-left: 0;
+  text-transform: uppercase;
+}
+
+.asc-eventsindex-display th, .asc-eventsindex-display td {
+    border-bottom: 1px solid #CCCCCC;
+    vertical-align: top;
+}
+
+.asc-eventsindex-display tr {
+    background: none repeat scroll 0 0 transparent;
+}
+
+.asc-eventsindex-display tr {
+    border-bottom: 1px solid #CCCCCC;
+    padding: 0.1em 0.6em;
+}
+
+.asc-eventsindex-display td {
+    font-size: 92.3%;
+    padding: 5px 20px 5px 0;
+}
+
+.asc-eventsindex-display th, .asc-eventsindex-display td {
+    border-bottom: 1px solid #CCCCCC;
+    vertical-align: top;
+}
+
+.asc-eventsindex-display td.asc-eventsindex-display-title {
+    width: 33%;
+}
+
+.asc-eventsindex-display td.asc-eventsindex-display-date {
+    width: 33%;
+}
+
+.asc-eventsindex-display td.asc-eventsindex-display-image img {
+    border: 2px solid #999999;
+    margin-right: 25px;
+}
+
+/* Class Names */
+/*
+.asc-eventsindex-display {
+}
+.asc-eventsindex-display-image-header {
+}
+.asc-eventsindex-display-title-header {
+}
+.asc-eventsindex-display-date-header {
+}
+.asc-eventsindex-display-location-header {
+}
+.asc-eventsindex-display-image {
+}
+.asc-eventsindex-display-title {
+}
+.asc-eventsindex-display-date {
+}
+.asc-eventsindex-display-location {
+}
+*/

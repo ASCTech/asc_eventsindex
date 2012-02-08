@@ -1,0 +1,273 @@
+<?php
+// $Id$
+/**
+ * @file
+ * Page to display ASC Events from a calendar. Requires a Standard Site Deployment to function.
+ */
+
+/**
+ * Display help and module information
+ * @param path which path of the site we're displaying help
+ * @param arg array that holds the current path as would be returned from arg() function
+ * @return help text for the path
+ */
+function asc_eventsindex_help($path, $arg) {
+  $output = '';  //declare your output variable
+  switch ($path) {
+    case "admin/help#asc_eventsindex":
+      $output = '<p>'.  t("Page to display ASC Events from a calendar. Requires a Standard Site Deployment to function.") .'</p>';
+      break;
+  }
+  return $output;
+} // function asc_eventsindex_help
+
+/**
+ *
+ * Implementation of hook_perm().
+ *
+ * Module permissions
+ */
+function asc_eventsindex_perm() {
+  return array('administer asc eventsindex');
+} // function asc_eventsindex_perm()
+
+/**
+ *
+ * Implementation of hook_menu().
+ *
+ * Menu items for module
+ */
+function asc_eventsindex_menu() {
+
+  // Declare the menu items variable
+  $items = array();
+
+  // Define the admin settings menu item
+  $items['admin/settings/asc_eventsindex'] = array(
+    'title' => 'ASC Events',
+    'description' => 'Modify the settings for ASC Events.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('asc_eventsindex_admin'),
+    'access arguments' => array('administer asc eventsindex'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  // Define the page callback for the main events listing
+  $items['events'] = array(
+    'title' => 'Events Calendar',
+    'page callback' => 'asc_eventsindex_listing',
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+
+  // Define the page callback for the main events listing
+  $items['events/%'] = array(
+    'title' => 'Events Calendar',
+    'page callback' => 'asc_eventsindex_listing',
+    'access arguments' => array('access content'),
+    'page arguments' => array(1),
+    'type' => MENU_CALLBACK,
+  );
+
+  // Return the menu items
+  return $items;
+} // function asc_eventsindex_menu()
+
+/**
+ * Display the events listing
+ */
+function asc_eventsindex_listing($date = '') {
+
+  // Handle empty passed values and sanitize
+  $no_date_passed = 0;
+  if (!isset($date) || $date == '') {
+    $date = date('Y-m-d');
+    $no_date_passed = 1;
+  }
+  $date = trim(check_plain($date));
+
+  // Add the stylesheet
+  drupal_add_css(drupal_get_path('module', 'asc_eventsindex') .'/css/asc_eventsindex.css');
+
+  // Initialize the output variable
+  $output = '';
+
+  // Disassemble the date so we can convert it as needed
+  $date_parts = explode('-', $date);
+  $arg_year = $date_parts[0];
+  $arg_month = $date_parts[1];
+  $arg_day = $date_parts[2];
+
+  // Validate the length of each section of the date if it is not empty
+  if ($arg_year != '' && strlen($arg_year) != 4) {
+    $arg_year = '';
+  }
+  if ($arg_month != '' && strlen($arg_month) != 2) {
+    $arg_month = '';
+  }
+  if ($arg_day != '' && strlen($arg_day) != 2) {
+    $arg_day = '';
+  }
+
+  // Get time offset
+  $off_set_date = date('Y-m-d h:i:s');
+  $off_set = date('Z', strtotime($off_set_date));
+
+  // The date passed was invalid or one was not passed, override it and change the date to the current date.
+  if ($arg_year == '' || $no_date_passed == 1) {
+    $date = date('Y-m-d');
+    $date = date('Y-m-d H:i:s', strtotime($date . ' 00:00:00'));
+    $no_date_passed = 1;
+    // Invalid date or no date passed, we treat this like an empty query string with the default where statement. The default where statement shows all items from the given date forward.
+    $where_statement = "
+      (ADDTIME(node_data_field_ascevents_date.field_ascevents_date_value, SEC_TO_TIME(" . $off_set . ")) >= '" . $date . "')
+    ";
+  }
+
+  // Only a year was passed, reset date to January 1st
+  if ($arg_month == '' && $arg_year != '' && $no_date_passed == 0) {
+    $startdate = strtotime($arg_year . '-01-' . '01' . ' 00:00:00');
+    $enddate = strtotime($arg_year . '-12-' . '31' . ' 23:59:59');
+    $startdate = date('Y-m-d H:i:s', $startdate);
+    $enddate = date('Y-m-d H:i:s', $enddate);
+    // Only year, use where statement to display all events from that year.
+    $where_statement = "
+      (ADDTIME(node_data_field_ascevents_date.field_ascevents_date_value, SEC_TO_TIME(" . $off_set . ")) >= '" . $startdate . "')
+      AND
+      (ADDTIME(node_data_field_ascevents_date.field_ascevents_date_value, SEC_TO_TIME(" . $off_set . ")) <= '" . $enddate . "')
+    ";
+  }
+
+  // Only the year and month were passed, reset day to 1
+  if ($arg_day == '' && $arg_month != '' && $arg_year != '' && $no_date_passed == 0) {
+    $startdate = strtotime($arg_year . '-' . $arg_month . '-01' . ' 00:00:00');
+    $enddate = strtotime($arg_year . '-' . $arg_month . '-' . date('t', $startdate) . ' 23:59:59');
+    $startdate = date('Y-m-d H:i:s', $startdate);
+    $enddate = date('Y-m-d H:i:s', $enddate);
+    // Only year and month, use where statement to display all events from that month.
+    $where_statement = "
+      (ADDTIME(node_data_field_ascevents_date.field_ascevents_date_value, SEC_TO_TIME(" . $off_set . ")) >= '" . $startdate . "')
+      AND
+      (ADDTIME(node_data_field_ascevents_date.field_ascevents_date_value, SEC_TO_TIME(" . $off_set . ")) <= '" . $enddate . "')
+    ";
+  }
+
+  // All three were passed, display events only from that day
+  if ($arg_day != '' && $arg_month != '' && $arg_year != '' && $no_date_passed == 0) {
+    $date = trim(check_plain($date));
+    //$date = strtotime($date);
+    $startdate = strtotime($date . ' 00:00:00');
+    $enddate = strtotime($date . ' 23:59:59');
+    $startdate = date('Y-m-d H:i:s', $startdate);
+    $enddate = date('Y-m-d H:i:s', $enddate);
+    // Time/Date format from database: 2011-03-18 16:00:00
+    // All three were passed, use the where statement to display only events from that day.
+    $where_statement = "
+      (ADDTIME(node_data_field_ascevents_date.field_ascevents_date_value, SEC_TO_TIME(" . $off_set . ")) >= '" . $startdate . "')
+      AND
+      (ADDTIME(node_data_field_ascevents_date.field_ascevents_date_value, SEC_TO_TIME(" . $off_set . ")) <= '" . $enddate . "')
+    ";
+  }
+
+  unset($qry_result);
+  unset($qry);
+
+  $qry = "
+    SELECT
+    node.nid AS nid,
+    node_data_field_ascevents_date.field_ascevents_date_value2 AS date2,
+    node_data_field_ascevents_date.field_ascevents_date_value AS date1,
+    node.vid AS vid,
+    node.title AS title,
+    files.filepath AS filepath,
+    node_data_field_ascevents_date.field_ascevents_image_fid AS image_fid,
+    node_data_field_ascevents_date.field_ascevents_image_fid AS image_fid,
+    node_data_field_ascevents_date.field_ascevents_image_list AS image_list,
+    node_data_field_ascevents_date.field_ascevents_image_data AS image_data,
+    node_data_field_ascevents_date.field_ascevents_location_value AS location
+    FROM node node
+    LEFT JOIN content_type_qs_events node_data_field_ascevents_date ON node.vid = node_data_field_ascevents_date.vid
+    LEFT JOIN files ON node_data_field_ascevents_date.field_ascevents_image_fid = files.fid
+    WHERE node.status <> 0 AND node.type in ('qs_events') AND
+    " . $where_statement . "
+    ORDER BY date2 ASC, date1 ASC
+  ";
+
+  $count_qry = "
+    SELECT COUNT(*)
+    FROM node node
+    LEFT JOIN content_type_qs_events node_data_field_ascevents_date ON node.vid = node_data_field_ascevents_date.vid
+    LEFT JOIN files ON node_data_field_ascevents_date.field_ascevents_image_fid = files.fid
+    WHERE node.status <> 0 AND node.type in ('qs_events') AND
+    " . $where_statement . "
+    ORDER BY node_data_field_ascevents_date.field_ascevents_date_value2 ASC, node_data_field_ascevents_date.field_ascevents_date_value ASC
+  ";
+
+  // Debug - Dump query to be run
+  /*
+  $output .= '<hr />';
+  $output .= $qry;
+  $output .= '<br />';
+  $output .= '<hr />';
+  */
+
+  // Run the query
+  $qry_result = pager_query($qry, 10, 0, $count_qry);
+
+  if ($qry_result->num_rows > 0) {
+    $output .= '<div class="asc-eventsindex-display">';
+    $output .= '<table>';
+    $output .= '<thead><tr>';
+    $output .= '<th class="asc-eventsindex-display-image-header"></th>';
+    $output .= '<th class="asc-eventsindex-display-title-header">Event</th>';
+    $output .= '<th class="asc-eventsindex-display-date-header">When</th>';
+    $output .= '<th class="asc-eventsindex-display-location-header">Where</th>';
+    $output .= '</tr></thead><tbody>';
+    while ($row = db_fetch_object($qry_result)) {
+      $aliased_path = drupal_get_path_alias("node/" . $row->nid);
+
+      // A manual offset is required to use time output this way in Drupal
+      $getoffset = date('Z', strtotime($row->date1)) . ' seconds';
+      // Get the starting timestamp from the node and apply the offset
+      $eventstartdate = strtotime($getoffset, strtotime($row->date1));
+      // Get the ending timestamp from the node and apply the offset
+      $eventenddate = strtotime($getoffset, strtotime($row->date2));
+
+      // Dump all of the starting times and days, formatted, into variables
+      $eventstart_day = date('n/d/Y', $eventstartdate);
+      $eventend_day = date('n/d/Y', $eventenddate);
+      $eventstart_time = date('g:ia', $eventstartdate);
+      $eventend_time = date('g:ia', $eventenddate);
+
+      $date_for_display = '';
+      // Display the dates and times
+      $date_for_display .= $eventstart_day;
+      // Do not display the end day if it matches the start day
+      if ($eventstart_day != $eventend_day) {
+        $date_for_display .= ' - ' . $eventend_day;
+      }
+      $date_for_display .= '<br />';
+      $date_for_display .= $eventstart_time;
+      // Do not display the end time if it matches the start time
+      if ($eventstart_time != $eventend_time) {
+        $date_for_display .= ' - ' . $eventend_time;
+      }
+
+      $output .= '<tr>';
+      $output .= '<td class="asc-eventsindex-display-image"><a href="/' . $aliased_path . '" title="' . $row->title . '">' . theme('imagecache', 'events_thumb', $row->filepath, $row->title, $row->title) . '</a></td>';
+      $output .= '<td class="asc-eventsindex-display-title"><a href="/' . $aliased_path . '" title="' . $row->title . '">' . $row->title . '</a></td>';
+      $output .= '<td class="asc-eventsindex-display-date">' . $date_for_display . '</td>';
+      $output .= '<td class="asc-eventsindex-display-location">' . $row->location . '</td>';
+      $output .= '</tr>';
+    }
+    $output .= '</tbody></table></div>';
+  }
+  else {
+    $output .= '<div style="text-align: center;">No events.</div>';
+  }
+
+  $output .= theme('pager', NULL, 10, 0);
+
+  // Return the output
+  return $output;
+}
